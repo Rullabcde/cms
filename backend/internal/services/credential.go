@@ -318,6 +318,46 @@ func (s *CredentialService) Update(id uuid.UUID, req CredentialUpdateRequest, us
 	return s.GetByID(id)
 }
 
+// ResolveCategory looks up a category by name (case-insensitive). If not found, it creates a new one.
+func (s *CredentialService) ResolveCategory(name string, userID uuid.UUID, ipAddress, userAgent string) (uuid.UUID, error) {
+	if name == "" {
+		// Use the first available category as default
+		var cat models.Category
+		if err := s.db.Order("is_default DESC, created_at ASC").First(&cat).Error; err != nil {
+			return uuid.Nil, fmt.Errorf("no categories available")
+		}
+		return cat.ID, nil
+	}
+
+	var cat models.Category
+	if err := s.db.Where("LOWER(name) = LOWER(?)", name).First(&cat).Error; err == nil {
+		return cat.ID, nil
+	}
+
+	// Category not found — create it
+	newCat := models.Category{
+		Name:            name,
+		IsDefault:       false,
+		CreatedByUserID: userID,
+	}
+	if err := s.db.Create(&newCat).Error; err != nil {
+		return uuid.Nil, fmt.Errorf("failed to create category %q: %w", name, err)
+	}
+
+	s.audit.Log(AuditLogParams{
+		UserID:        &userID,
+		Action:        models.AuditActionCreate,
+		ResourceType:  "category",
+		ResourceID:    newCat.ID.String(),
+		ChangeSummary: fmt.Sprintf("Auto-created category during CSV import: %s", name),
+		IPAddress:     ipAddress,
+		UserAgent:     userAgent,
+		Status:        models.AuditStatusSuccess,
+	})
+
+	return newCat.ID, nil
+}
+
 func (s *CredentialService) Delete(id uuid.UUID, userID uuid.UUID, ipAddress, userAgent string) error {
 	result := s.db.Model(&models.Credential{}).
 		Where("id = ? AND is_deleted = ?", id, false).

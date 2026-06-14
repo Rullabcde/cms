@@ -26,7 +26,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Loader2,
+  Star,
 } from 'lucide-react'
+import { getFavoriteIds } from './dashboard-layout'
 import type { Credential, Category } from '@/types'
 import { Suspense } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -50,8 +52,23 @@ function HomePageInner() {
   const queryClient = useQueryClient()
 
   const searchQuery = searchParams.get('q') || ''
-  const categoryId = searchParams.get('category_id') || ''
+  const showFavorites = searchParams.get('favorites') === 'true'
   const page = Number(searchParams.get('page') || '1')
+
+  // Favorites state (localStorage-backed)
+  const [favorites, setFavorites] = useState<Set<string>>(() => new Set(getFavoriteIds()))
+
+  const toggleFavorite = (id: string) => {
+    setFavorites((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      localStorage.setItem('favorite_credentials', JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  const isFavorite = (id: string) => favorites.has(id)
 
   const [selectedCredential, setSelectedCredential] = useState<Credential | null>(null)
   const [editingCredential, setEditingCredential] = useState<Credential | null>(null)
@@ -69,14 +86,13 @@ function HomePageInner() {
   }
 
   const { data: credData, isLoading } = useQuery({
-    queryKey: ['credentials', page, searchQuery, categoryId],
+    queryKey: ['credentials', page, searchQuery],
     queryFn: () =>
       credentialsApi
         .list({
           page: String(page),
           limit: '100',
           ...(searchQuery && { q: searchQuery }),
-          ...(categoryId && { category_id: categoryId }),
         })
         .then((r) => r.data),
   })
@@ -105,17 +121,23 @@ function HomePageInner() {
     return acc
   }, {})
 
-  // Apply local search filter
+  // Apply local search filter + favorites filter
   const filteredGrouped = Object.entries(grouped).reduce<Record<string, Credential[]>>((acc, [group, creds]) => {
-    const filtered = localSearch
-      ? creds.filter(
-          (c) =>
-            c.name.toLowerCase().includes(localSearch.toLowerCase()) ||
-            (c.database_name || '').toLowerCase().includes(localSearch.toLowerCase()) ||
-            (c.description || '').toLowerCase().includes(localSearch.toLowerCase()) ||
-            (c.tags || []).some((t) => t.toLowerCase().includes(localSearch.toLowerCase()))
-        )
-      : creds
+    let filtered = creds
+    // Filter by favorites if active
+    if (showFavorites) {
+      filtered = filtered.filter((c) => favorites.has(c.id))
+    }
+    // Filter by local search
+    if (localSearch) {
+      filtered = filtered.filter(
+        (c) =>
+          c.name.toLowerCase().includes(localSearch.toLowerCase()) ||
+          (c.database_name || '').toLowerCase().includes(localSearch.toLowerCase()) ||
+          (c.description || '').toLowerCase().includes(localSearch.toLowerCase()) ||
+          (c.tags || []).some((t) => t.toLowerCase().includes(localSearch.toLowerCase()))
+      )
+    }
     if (filtered.length > 0) acc[group] = filtered
     return acc
   }, {})
@@ -127,9 +149,13 @@ function HomePageInner() {
       {/* ─── Header ──────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-semibold text-foreground tracking-tight">Credentials</h1>
+          <h1 className="text-lg font-semibold text-foreground tracking-tight">
+            {showFavorites ? 'Favorites' : 'Credentials'}
+          </h1>
           <p className="text-xs text-text-secondary mt-0.5">
-            {filteredTotal} of {total} credential{total !== 1 ? 's' : ''}
+            {showFavorites
+              ? `${filteredTotal} favorite${filteredTotal !== 1 ? 's' : ''}`
+              : `${filteredTotal} of ${total} credential${total !== 1 ? 's' : ''}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -175,7 +201,7 @@ function HomePageInner() {
       ) : Object.keys(filteredGrouped).length === 0 ? (
         <EmptyState
           searchQuery={searchQuery || localSearch}
-          categoryId={categoryId}
+          showFavorites={showFavorites}
           canEdit={canEdit}
           onAdd={() => setShowCreateModal(true)}
         />
@@ -190,6 +216,8 @@ function HomePageInner() {
               onView={(cred) => setSelectedCredential(cred)}
               onEdit={(cred) => setEditingCredential(cred)}
               onCopy={copyToClipboard}
+              isFavorite={isFavorite}
+              onToggleFavorite={toggleFavorite}
             />
           ))}
         </div>
@@ -248,6 +276,8 @@ function DatabaseGroup({
   onView,
   onEdit,
   onCopy,
+  isFavorite,
+  onToggleFavorite,
 }: {
   groupName: string
   credentials: Credential[]
@@ -255,6 +285,8 @@ function DatabaseGroup({
   onView: (cred: Credential) => void
   onEdit: (cred: Credential) => void
   onCopy: (text: string) => void
+  isFavorite: (id: string) => boolean
+  onToggleFavorite: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(true)
 
@@ -294,6 +326,8 @@ function DatabaseGroup({
                 onView={() => onView(cred)}
                 onEdit={() => onEdit(cred)}
                 onCopy={onCopy}
+                isFavorite={isFavorite(cred.id)}
+                onToggleFavorite={() => onToggleFavorite(cred.id)}
               />
             ))}
           </div>
@@ -327,12 +361,16 @@ function CredentialCard({
   onView,
   onEdit,
   onCopy,
+  isFavorite,
+  onToggleFavorite,
 }: {
   credential: Credential
   canEdit: boolean
   onView: () => void
   onEdit: () => void
   onCopy: (text: string) => void
+  isFavorite: boolean
+  onToggleFavorite: () => void
 }) {
   const queryClient = useQueryClient()
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -348,11 +386,21 @@ function CredentialCard({
   return (
     <>
       <div className="group relative flex flex-col gap-2 p-3.5 rounded-xl border border-border bg-surface hover:border-accent/30 hover:shadow-sm transition-all duration-150">
-        {/* Name */}
+        {/* Name + Favorite */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="text-[13px] font-medium text-foreground leading-snug truncate flex-1 tracking-tight">
             {credential.name}
           </h3>
+          <button
+            onClick={onToggleFavorite}
+            className={cn(
+              'p-1 rounded-md transition-colors shrink-0',
+              isFavorite ? 'text-warning hover:text-warning/80' : 'text-text-secondary/40 hover:text-warning'
+            )}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Star className={cn('w-3.5 h-3.5', isFavorite && 'fill-current')} />
+          </button>
         </div>
 
         {/* Database Name */}
@@ -485,25 +533,34 @@ function CredentialCard({
 // ─── Empty State ───────────────────────────────────────────────────────────────
 function EmptyState({
   searchQuery,
-  categoryId,
+  showFavorites,
   canEdit,
   onAdd,
 }: {
   searchQuery: string
-  categoryId: string
+  showFavorites: boolean
   canEdit: boolean
   onAdd: () => void
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-border rounded-xl">
       <div className="w-12 h-12 rounded-2xl bg-secondary-bg flex items-center justify-center mb-4">
-        {searchQuery || categoryId ? (
+        {showFavorites ? (
+          <Star className="w-6 h-6 text-text-secondary" />
+        ) : searchQuery ? (
           <Search className="w-6 h-6 text-text-secondary" />
         ) : (
           <Package2 className="w-6 h-6 text-text-secondary" />
         )}
       </div>
-      {searchQuery || categoryId ? (
+      {showFavorites ? (
+        <>
+          <h3 className="text-base font-semibold text-foreground mb-1">No favorites yet</h3>
+          <p className="text-sm text-text-secondary max-w-xs text-center">
+            Star credentials you use often to find them quickly here.
+          </p>
+        </>
+      ) : searchQuery ? (
         <>
           <h3 className="text-base font-semibold text-foreground mb-1">No results found</h3>
           <p className="text-sm text-text-secondary max-w-xs text-center">

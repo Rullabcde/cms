@@ -117,6 +117,7 @@ func main() {
 	api.Get("/credentials", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), credentialHandler.List)
 	api.Get("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), credentialHandler.Get)
 	api.Post("/credentials", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Create)
+	api.Post("/credentials/import", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.ImportCSV)
 	api.Put("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Update)
 	api.Delete("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Delete)
 

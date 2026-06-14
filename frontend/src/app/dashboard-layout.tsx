@@ -2,78 +2,37 @@
 
 import { useAuth } from '@/contexts/auth-context'
 import { useTheme } from '@/contexts/theme-context'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState, Suspense } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { categoriesApi } from '@/lib/api'
-import type { Category } from '@/types'
-import {
-  Search,
-  Sun,
-  Moon,
-  LogOut,
-  Menu,
-  X,
-  Plus,
-  Shield,
-  FileText,
-  Users,
-  Tag,
-  ChevronDown,
-  LayoutDashboard,
-} from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { Sun, Moon, LogOut, Menu, X, Shield, FileText, Users, ChevronDown, LayoutDashboard, Star } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
-// ─── Inner layout with search params access ──────────────────────────────────
+// ─── Shared favorites helper ──────────────────────────────────────────────────
+export function getFavoriteIds(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem('favorite_credentials')
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
+// ─── Inner layout with pathname access ────────────────────────────────────────
 function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
   const { user, isLoading, isAuthenticated, logout } = useAuth()
   const { setTheme, resolvedTheme } = useTheme()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const queryClient = useQueryClient()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
   const isHomePage = pathname === '/'
 
-  // URL-driven filter state (only used on home page)
-  const searchQuery = searchParams.get('q') || ''
-  const activeCategoryId = searchParams.get('category_id') || ''
-
-  // Debounced search input
-  const [searchInput, setSearchInput] = useState(searchQuery)
-  useEffect(() => {
-    if (!isHomePage) return
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString())
-      if (searchInput) params.set('q', searchInput)
-      else params.delete('q')
-      router.replace(`/?${params.toString()}`)
-    }, 300)
-    return () => clearTimeout(timer)
-  }, [searchInput, router, searchParams, isHomePage])
-
-  // Fetch categories for sidebar
-  const { data: catData } = useQuery({
-    queryKey: ['categories'],
-    queryFn: () => categoriesApi.list().then((r) => r.data),
-  })
-  const categories: Category[] = catData?.data || []
-
-  // Add category mutation
-  const [showAddCategory, setShowAddCategory] = useState(false)
-  const [newCatName, setNewCatName] = useState('')
-  const addCategoryMutation = useMutation({
-    mutationFn: (name: string) => categoriesApi.create({ name }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] })
-      setNewCatName('')
-      setShowAddCategory(false)
-    },
-  })
+  // Compute favorites count on each render (localStorage is fast/synchronous)
+  const favCount = getFavoriteIds().length
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -113,22 +72,6 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
           </div>
           <span className="hidden sm:inline text-foreground tracking-tight">Credential Manager</span>
         </Link>
-
-        {/* Search Bar – only on home page */}
-        {isHomePage && (
-          <div className="flex-1 max-w-sm mx-auto">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="w-full pl-8 pr-4 py-1.5 rounded-lg bg-secondary-bg border border-border text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 transition-all placeholder:text-text-secondary"
-              />
-            </div>
-          </div>
-        )}
 
         <div className="flex-1" />
 
@@ -197,73 +140,23 @@ function DashboardLayoutInner({ children }: { children: React.ReactNode }) {
               href="/"
               icon={<LayoutDashboard className="w-4 h-4" />}
               label="Credentials"
-              active={isHomePage && !activeCategoryId}
+              active={isHomePage}
+              onClick={() => setSidebarOpen(false)}
+            />
+
+            {/* Favorites */}
+            <SidebarLink
+              href="/?favorites=true"
+              icon={<Star className="w-4 h-4" />}
+              label="Favorites"
+              active={false}
+              badge={favCount > 0 ? favCount : undefined}
               preventDefault
               onClick={() => {
-                const params = new URLSearchParams()
-                router.replace(`/?${params.toString()}`)
-                setSearchInput('')
+                router.push('/?favorites=true')
                 setSidebarOpen(false)
               }}
             />
-
-            {/* Categories Section */}
-            <div className="pt-4 pb-1.5 px-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">
-                  Categories
-                </span>
-                {user?.role === 'admin' && (
-                  <button
-                    className="p-0.5 rounded hover:bg-secondary-bg transition-colors"
-                    onClick={() => setShowAddCategory(!showAddCategory)}
-                    title="Add category"
-                  >
-                    <Plus className="w-3 h-3 text-text-secondary" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {showAddCategory && (
-              <div className="px-2 pb-1">
-                <input
-                  autoFocus
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newCatName.trim()) {
-                      addCategoryMutation.mutate(newCatName.trim())
-                    }
-                    if (e.key === 'Escape') {
-                      setShowAddCategory(false)
-                      setNewCatName('')
-                    }
-                  }}
-                  placeholder="Category name..."
-                  className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-secondary-bg border border-border focus:outline-none focus:ring-1 focus:ring-accent/50"
-                />
-              </div>
-            )}
-
-            {categories.map((cat) => (
-              <SidebarLink
-                key={cat.id}
-                href={`/?category_id=${cat.id}`}
-                icon={<Tag className="w-3.5 h-3.5" />}
-                label={cat.name}
-                active={isHomePage && activeCategoryId === cat.id}
-                preventDefault
-                onClick={() => {
-                  const params = new URLSearchParams(searchParams.toString())
-                  params.set('category_id', cat.id)
-                  params.delete('q')
-                  router.replace(`/?${params.toString()}`)
-                  setSearchInput('')
-                  setSidebarOpen(false)
-                }}
-              />
-            ))}
           </nav>
 
           {/* Admin Links */}
@@ -330,6 +223,7 @@ function SidebarLink({
   active,
   onClick,
   preventDefault,
+  badge,
 }: {
   href: string
   icon: React.ReactNode
@@ -337,6 +231,7 @@ function SidebarLink({
   active?: boolean
   onClick?: () => void
   preventDefault?: boolean
+  badge?: number
 }) {
   return (
     <Link
@@ -353,7 +248,12 @@ function SidebarLink({
       )}
     >
       <span className={cn('shrink-0', active ? 'text-accent' : 'text-text-secondary')}>{icon}</span>
-      <span className="truncate">{label}</span>
+      <span className="truncate flex-1">{label}</span>
+      {badge !== undefined && (
+        <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-accent/15 text-accent text-[10px] font-semibold">
+          {badge}
+        </span>
+      )}
     </Link>
   )
 }
