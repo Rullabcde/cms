@@ -25,7 +25,10 @@ import (
 
 func main() {
 	// Load configuration
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Configuration error: %v", err)
+	}
 
 	// Connect to database
 	db := connectDB(cfg)
@@ -110,34 +113,34 @@ func main() {
 	api.Use(middleware.CSRFProtection())
 	api.Use(middleware.RateLimit(generalLimiter))
 
-	// Credentials (Viewer+ can read, Editor+ can write)
+	// Credentials
 	api.Get("/credentials", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), credentialHandler.List)
 	api.Get("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), credentialHandler.Get)
 	api.Post("/credentials", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Create)
 	api.Put("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Update)
 	api.Delete("/credentials/:id", middleware.RequireRole(models.RoleAdmin, models.RoleEditor), credentialHandler.Delete)
 
-	// Search (all authenticated users)
+	// Search
 	api.Get("/search", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), credentialHandler.List)
 
-	// Categories (all can read, Admin can write)
+	// Categories
 	api.Get("/categories", middleware.RequireRole(models.RoleAdmin, models.RoleEditor, models.RoleViewer), categoryHandler.List)
 	api.Post("/categories", middleware.RequireRole(models.RoleAdmin), categoryHandler.Create)
 	api.Put("/categories/:id", middleware.RequireRole(models.RoleAdmin), categoryHandler.Update)
 	api.Delete("/categories/:id", middleware.RequireRole(models.RoleAdmin), categoryHandler.Delete)
 
-	// Users (Admin only)
+	// Users
 	api.Get("/users", middleware.RequireRole(models.RoleAdmin), userHandler.List)
 	api.Put("/users/:id/role", middleware.RequireRole(models.RoleAdmin), userHandler.UpdateRole)
 	api.Put("/users/:id/deactivate", middleware.RequireRole(models.RoleAdmin), userHandler.Deactivate)
 
-	// Whitelist (Admin only)
+	// Whitelist
 	api.Get("/whitelist", middleware.RequireRole(models.RoleAdmin), whitelistHandler.List)
 	api.Post("/whitelist", middleware.RequireRole(models.RoleAdmin), whitelistHandler.Add)
 	api.Delete("/whitelist/:id", middleware.RequireRole(models.RoleAdmin), whitelistHandler.Remove)
 	api.Post("/whitelist/import", middleware.RequireRole(models.RoleAdmin), whitelistHandler.BulkImport)
 
-	// Audit Logs (Admin only)
+	// Audit Logs
 	api.Get("/audit-logs", middleware.RequireRole(models.RoleAdmin), auditLogHandler.List)
 	api.Get("/audit-logs/export", middleware.RequireRole(models.RoleAdmin), auditLogHandler.Export)
 
@@ -225,7 +228,7 @@ func ensureSystemUser(db *gorm.DB) uuid.UUID {
 func seedCategories(db *gorm.DB, cfg *config.Config) {
 	systemUserID := ensureSystemUser(db)
 
-	// Bootstrap the first admin: whitelist + pre-create user
+	// Bootstrap the first admin
 	if cfg.AdminEmail != "" {
 		// Ensure admin email is whitelisted
 		var wlCount int64
@@ -243,7 +246,7 @@ func seedCategories(db *gorm.DB, cfg *config.Config) {
 			}
 		}
 
-		// Ensure admin user exists (will be created on first OAuth login if not)
+		// Ensure admin user exists
 		var adminCount int64
 		db.Model(&models.User{}).Where("email = ?", cfg.AdminEmail).Count(&adminCount)
 		if adminCount == 0 {
@@ -262,9 +265,10 @@ func seedCategories(db *gorm.DB, cfg *config.Config) {
 	}
 
 	defaultCategories := []models.Category{
-		{Name: "Database", IsDefault: true},
-		{Name: "Elastic", IsDefault: true},
-		{Name: "Kubernetes", IsDefault: true},
+		{Name: "MySQL", IsDefault: true},
+		{Name: "PostgreSQL", IsDefault: true},
+		{Name: "MongoDB", IsDefault: true},
+		{Name: "MariaDB", IsDefault: true},
 	}
 
 	for _, cat := range defaultCategories {

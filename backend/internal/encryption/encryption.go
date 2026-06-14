@@ -17,12 +17,10 @@ var (
 	ErrInvalidField    = errors.New("invalid encrypted field structure")
 )
 
-// Engine handles AES-256-GCM encryption and decryption
 type Engine struct {
 	gcm cipher.AEAD
 }
 
-// NewEngine creates a new encryption engine with the given 32-byte key
 func NewEngine(key []byte) (*Engine, error) {
 	if len(key) != 32 {
 		return nil, ErrInvalidKey
@@ -41,14 +39,12 @@ func NewEngine(key []byte) (*Engine, error) {
 	return &Engine{gcm: gcm}, nil
 }
 
-// EncryptedField represents a single encrypted value with its nonce
 type EncryptedField struct {
-	Value     string `json:"value"`     // base64-encoded ciphertext
-	Nonce     string `json:"nonce"`     // base64-encoded 12-byte nonce
-	Algorithm string `json:"algorithm"` // always "aes-256-gcm"
+	Value     string `json:"value"`
+	Nonce     string `json:"nonce"`
+	Algorithm string `json:"algorithm"`
 }
 
-// Encrypt encrypts plaintext and returns an EncryptedField
 func (e *Engine) Encrypt(plaintext string) (*EncryptedField, error) {
 	nonce := make([]byte, e.gcm.NonceSize()) // 12 bytes
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
@@ -64,7 +60,6 @@ func (e *Engine) Encrypt(plaintext string) (*EncryptedField, error) {
 	}, nil
 }
 
-// Decrypt decrypts an EncryptedField and returns the plaintext
 func (e *Engine) Decrypt(field *EncryptedField) (string, error) {
 	if field == nil {
 		return "", ErrInvalidField
@@ -88,7 +83,6 @@ func (e *Engine) Decrypt(field *EncryptedField) (string, error) {
 	return string(plaintext), nil
 }
 
-// EncryptFields encrypts a map of key-value pairs (for credential_fields JSONB)
 func (e *Engine) EncryptFields(fields map[string]string) (map[string]EncryptedField, error) {
 	result := make(map[string]EncryptedField, len(fields))
 	for key, value := range fields {
@@ -101,7 +95,6 @@ func (e *Engine) EncryptFields(fields map[string]string) (map[string]EncryptedFi
 	return result, nil
 }
 
-// DecryptFields decrypts a map of EncryptedField values back to plaintext
 func (e *Engine) DecryptFields(fields map[string]EncryptedField) (map[string]string, error) {
 	result := make(map[string]string, len(fields))
 	for key, field := range fields {
@@ -114,7 +107,6 @@ func (e *Engine) DecryptFields(fields map[string]EncryptedField) (map[string]str
 	return result, nil
 }
 
-// EncryptJSON encrypts a JSON-serializable value (for old_value/new_value in audit logs)
 func (e *Engine) EncryptJSON(v interface{}) (string, error) {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -126,7 +118,6 @@ func (e *Engine) EncryptJSON(v interface{}) (string, error) {
 		return "", err
 	}
 
-	// Serialize the EncryptedField as JSON for storage
 	result, err := json.Marshal(encrypted)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal encrypted field: %w", err)
@@ -135,7 +126,6 @@ func (e *Engine) EncryptJSON(v interface{}) (string, error) {
 	return string(result), nil
 }
 
-// DecryptJSON decrypts an encrypted JSON string back to the target type
 func (e *Engine) DecryptJSON(encryptedJSON string, target interface{}) error {
 	var field EncryptedField
 	if err := json.Unmarshal([]byte(encryptedJSON), &field); err != nil {

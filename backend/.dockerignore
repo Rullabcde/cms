@@ -1,0 +1,38 @@
+# Dependencies
+vendor/
+
+# Build output
+bin/
+tmp/
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Tests & docs
+*_test.go
+*.md
+LICENSE
+
+# Migrations
+migrations/

@@ -7,7 +7,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// Role represents user role in the system
 type Role string
 
 const (
@@ -16,7 +15,7 @@ const (
 	RoleViewer Role = "viewer"
 )
 
-// User represents the users table
+// User representsthe users table
 type User struct {
 	ID              uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
 	Email           string     `gorm:"uniqueIndex;not null" json:"email"`
@@ -39,7 +38,6 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// WhitelistEmail represents the whitelist_emails table
 type WhitelistEmail struct {
 	ID               uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
 	Email            string    `gorm:"uniqueIndex;not null" json:"email"`
@@ -59,7 +57,6 @@ func (w *WhitelistEmail) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Category represents the categories table
 type Category struct {
 	ID               uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
 	Name             string    `gorm:"uniqueIndex;not null;size:50" json:"name"`
@@ -84,18 +81,17 @@ func (c *Category) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// EncryptedField represents a single encrypted credential field
 type EncryptedField struct {
-	Value     string `json:"value"`     // base64-encoded ciphertext
-	Nonce     string `json:"nonce"`     // base64-encoded 12-byte nonce
-	Algorithm string `json:"algorithm"` // "aes-256-gcm"
+	Value     string `json:"value"`
+	Nonce     string `json:"nonce"`
+	Algorithm string `json:"algorithm"`
 }
 
-// Credential represents the credentials table
 type Credential struct {
 	ID                uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
 	CategoryID        uuid.UUID  `gorm:"type:uuid;index;not null" json:"category_id"`
 	Name              string     `gorm:"index;not null;size:255" json:"name"`
+	DatabaseName      *string    `gorm:"size:255;index" json:"database_name"`
 	Description       *string    `json:"description"`
 	Tags              []string   `gorm:"type:jsonb;index:,type:gin;serializer:json" json:"tags"`
 	CredentialFields  map[string]EncryptedField `gorm:"type:jsonb;column:credential_fields;serializer:json" json:"-"`
@@ -119,7 +115,6 @@ func (c *Credential) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// AuditAction represents types of auditable actions
 type AuditAction string
 
 const (
@@ -133,7 +128,6 @@ const (
 	AuditActionExport AuditAction = "EXPORT"
 )
 
-// AuditStatus represents the status of an audit event
 type AuditStatus string
 
 const (
@@ -141,7 +135,6 @@ const (
 	AuditStatusFailure AuditStatus = "FAILURE"
 )
 
-// AuditLog represents the audit_logs table
 type AuditLog struct {
 	ID              uuid.UUID    `gorm:"type:uuid;primary_key" json:"id"`
 	UserID          *uuid.UUID   `gorm:"type:uuid;index" json:"user_id"`
@@ -168,7 +161,6 @@ func (a *AuditLog) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Session represents the sessions table
 type Session struct {
 	ID                uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
 	UserID            uuid.UUID `gorm:"type:uuid;index:idx_user_expires;not null" json:"user_id"`

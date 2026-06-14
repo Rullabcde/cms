@@ -15,7 +15,6 @@ import (
 	"golang.org/x/oauth2/google"
 )
 
-// GoogleUserInfo represents user info from Google
 type GoogleUserInfo struct {
 	Sub           string `json:"sub"`
 	Email         string `json:"email"`
@@ -24,7 +23,6 @@ type GoogleUserInfo struct {
 	Picture       string `json:"picture"`
 }
 
-// JWTClaims represents the JWT token claims
 type JWTClaims struct {
 	UserID string      `json:"user_id"`
 	Email  string      `json:"sub"`
@@ -32,13 +30,11 @@ type JWTClaims struct {
 	jwt.RegisteredClaims
 }
 
-// Service handles authentication operations
 type Service struct {
 	cfg         *config.Config
 	oauthConfig *oauth2.Config
 }
 
-// NewService creates a new auth service
 func NewService(cfg *config.Config) *Service {
 	oauthCfg := &oauth2.Config{
 		ClientID:     cfg.GoogleClientID,
@@ -54,12 +50,10 @@ func NewService(cfg *config.Config) *Service {
 	}
 }
 
-// GetAuthURL returns the Google OAuth2 consent URL
 func (s *Service) GetAuthURL(state string) string {
 	return s.oauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 }
 
-// ExchangeCode exchanges the authorization code for tokens and returns user info
 func (s *Service) ExchangeCode(ctx context.Context, code string) (*GoogleUserInfo, error) {
 	token, err := s.oauthConfig.Exchange(ctx, code)
 	if err != nil {
@@ -86,7 +80,6 @@ func (s *Service) ExchangeCode(ctx context.Context, code string) (*GoogleUserInf
 	return &userInfo, nil
 }
 
-// GenerateAccessToken creates a short-lived JWT access token
 func (s *Service) GenerateAccessToken(user *models.User) (string, error) {
 	claims := JWTClaims{
 		UserID: user.ID.String(),
@@ -104,7 +97,6 @@ func (s *Service) GenerateAccessToken(user *models.User) (string, error) {
 	return token.SignedString([]byte(s.cfg.JWTSecret))
 }
 
-// GenerateRefreshToken creates a long-lived refresh token
 func (s *Service) GenerateRefreshToken(user *models.User) (string, error) {
 	claims := JWTClaims{
 		UserID: user.ID.String(),
@@ -123,7 +115,6 @@ func (s *Service) GenerateRefreshToken(user *models.User) (string, error) {
 	return token.SignedString([]byte(s.cfg.JWTSecret))
 }
 
-// ValidateToken validates a JWT token and returns the claims
 func (s *Service) ValidateToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

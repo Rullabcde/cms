@@ -6,17 +6,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// AuditService handles audit log operations
 type AuditService struct {
 	db *gorm.DB
 }
 
-// NewAuditService creates a new audit service
 func NewAuditService(db *gorm.DB) *AuditService {
 	return &AuditService{db: db}
 }
 
-// Log creates a new audit log entry
 func (s *AuditService) Log(params AuditLogParams) error {
 	log := models.AuditLog{
 		UserID:        params.UserID,
@@ -34,7 +31,6 @@ func (s *AuditService) Log(params AuditLogParams) error {
 	return s.db.Create(&log).Error
 }
 
-// AuditLogParams defines parameters for creating an audit log
 type AuditLogParams struct {
 	UserID        *uuid.UUID
 	Action        models.AuditAction
@@ -49,7 +45,6 @@ type AuditLogParams struct {
 	ErrorMessage  *string
 }
 
-// AuditLogFilter defines filtering options for querying audit logs
 type AuditLogFilter struct {
 	UserID       string
 	Action       string
@@ -61,7 +56,6 @@ type AuditLogFilter struct {
 	Limit        int
 }
 
-// List returns paginated audit logs with filters
 func (s *AuditService) List(filter AuditLogFilter) ([]models.AuditLog, int64, error) {
 	var logs []models.AuditLog
 	var total int64

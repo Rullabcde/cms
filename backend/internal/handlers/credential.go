@@ -9,17 +9,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// CredentialHandler handles credential CRUD endpoints
 type CredentialHandler struct {
 	service *services.CredentialService
 }
 
-// NewCredentialHandler creates a new credential handler
 func NewCredentialHandler(svc *services.CredentialService) *CredentialHandler {
 	return &CredentialHandler{service: svc}
 }
 
-// List returns paginated credentials
 func (h *CredentialHandler) List(c *fiber.Ctx) error {
 	page, limit := parsePagination(c)
 
@@ -50,7 +47,6 @@ func (h *CredentialHandler) List(c *fiber.Ctx) error {
 	})
 }
 
-// Get returns a single credential with decrypted fields
 func (h *CredentialHandler) Get(c *fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
@@ -65,7 +61,6 @@ func (h *CredentialHandler) Get(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": credential})
 }
 
-// Create creates a new credential
 func (h *CredentialHandler) Create(c *fiber.Ctx) error {
 	var req services.CredentialCreateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -93,7 +88,6 @@ func (h *CredentialHandler) Create(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"data": credential})
 }
 
-// Update updates a credential
 func (h *CredentialHandler) Update(c *fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {
@@ -118,7 +112,6 @@ func (h *CredentialHandler) Update(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": credential})
 }
 
-// Delete soft-deletes a credential
 func (h *CredentialHandler) Delete(c *fiber.Ctx) error {
 	id, err := parseUUIDParam(c, "id")
 	if err != nil {

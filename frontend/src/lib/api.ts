@@ -10,7 +10,6 @@ export const api = axios.create({
   },
 })
 
-// Add CSRF token to requests
 api.interceptors.request.use((config) => {
   if (['post', 'put', 'delete', 'patch'].includes(config.method || '')) {
     const csrfToken = getCookie('csrf_token')
@@ -21,7 +20,6 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Handle 401 responses with token refresh
 let isRefreshing = false
 let refreshSubscribers: ((token: string) => void)[] = []
 
@@ -39,13 +37,11 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
 
-    // Skip retry for refresh itself, login, or already-retried requests
     const isRefresh = originalRequest.url?.includes('/auth/refresh')
     const isLogin = originalRequest.url?.includes('/auth/login')
 
     if (error.response?.status === 401 && !originalRequest._retry && !isRefresh && !isLogin) {
       if (isRefreshing) {
-        // Queue this request until refresh completes
         return new Promise((resolve) => {
           addRefreshSubscriber(() => {
             resolve(api(originalRequest))
@@ -64,7 +60,6 @@ api.interceptors.response.use(
       } catch {
         isRefreshing = false
         refreshSubscribers = []
-        // Redirect to login if refresh fails (unless already on /login)
         if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
           window.location.href = '/login'
         }
@@ -83,7 +78,6 @@ function getCookie(name: string): string | null {
   return null
 }
 
-// API functions
 export const authApi = {
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
@@ -95,6 +89,13 @@ export const credentialsApi = {
   create: (data: unknown) => api.post('/api/credentials', data),
   update: (id: string, data: unknown) => api.put(`/api/credentials/${id}`, data),
   delete: (id: string) => api.delete(`/api/credentials/${id}`),
+  importCSV: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post('/api/credentials/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
 }
 
 export const categoriesApi = {

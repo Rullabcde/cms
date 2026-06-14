@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// AuthHandler handles authentication endpoints
 type AuthHandler struct {
 	authService      *auth.Service
 	userService      *services.UserService
@@ -23,7 +22,6 @@ type AuthHandler struct {
 	frontendURL      string
 }
 
-// NewAuthHandler creates a new auth handler
 func NewAuthHandler(authSvc *auth.Service, userSvc *services.UserService, whitelistSvc *services.WhitelistService, auditSvc *services.AuditService, frontendURL string) *AuthHandler {
 	return &AuthHandler{
 		authService:      authSvc,
@@ -34,7 +32,6 @@ func NewAuthHandler(authSvc *auth.Service, userSvc *services.UserService, whitel
 	}
 }
 
-// Login redirects to Google OAuth consent screen
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	state := generateState()
 	c.Cookie(&fiber.Cookie{
@@ -49,9 +46,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	return c.Redirect(url)
 }
 
-// Callback handles the OAuth callback
 func (h *AuthHandler) Callback(c *fiber.Ctx) error {
-	// Validate state
 	state := c.Query("state")
 	savedState := c.Cookies("oauth_state")
 	if state == "" || state != savedState {
@@ -67,7 +62,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Exchange code for user info
 	userInfo, err := h.authService.ExchangeCode(c.Context(), code)
 	if err != nil {
 		h.auditService.Log(services.AuditLogParams{
@@ -84,7 +78,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check whitelist
 	if !h.whitelistService.IsEmailWhitelisted(userInfo.Email) {
 		h.auditService.Log(services.AuditLogParams{
 			Action:        models.AuditActionLogin,
@@ -100,7 +93,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Find or create user
 	user, err := h.userService.FindOrCreateUser(userInfo.Email, userInfo.Sub)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -108,11 +100,9 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Update last login
 	now := time.Now()
 	h.userService.UpdateLastLogin(user.ID, now)
 
-	// Generate tokens
 	accessToken, err := h.authService.GenerateAccessToken(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -127,7 +117,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set cookies
 	c.Cookie(&fiber.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
@@ -145,7 +134,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		MaxAge:   7 * 24 * 60 * 60,
 	})
 
-	// Issue CSRF token
 	csrfToken := generateCSRFToken()
 	c.Cookie(&fiber.Cookie{
 		Name:     "csrf_token",
@@ -156,7 +144,6 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		MaxAge:   86400,
 	})
 
-	// Audit log
 	h.auditService.Log(services.AuditLogParams{
 		UserID:        &user.ID,
 		Action:        models.AuditActionLogin,
@@ -168,11 +155,9 @@ func (h *AuthHandler) Callback(c *fiber.Ctx) error {
 		Status:        models.AuditStatusSuccess,
 	})
 
-	// Redirect to frontend
 	return c.Redirect(h.frontendURL + "/")
 }
 
-// Refresh refreshes the access token
 func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
 	if refreshToken == "" {
@@ -188,7 +173,6 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get user
 	userID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -203,7 +187,6 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate new tokens (rotation)
 	newAccessToken, _ := h.authService.GenerateAccessToken(user)
 	newRefreshToken, _ := h.authService.GenerateRefreshToken(user)
 
@@ -227,12 +210,10 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Token refreshed"})
 }
 
-// Logout clears authentication cookies
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	userIDStr := middleware.GetUserIDFromContext(c)
 	userID, _ := uuid.Parse(userIDStr)
 
-	// Audit log
 	if userID != uuid.Nil {
 		h.auditService.Log(services.AuditLogParams{
 			UserID:        &userID,
@@ -246,7 +227,6 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		})
 	}
 
-	// Clear cookies
 	c.Cookie(&fiber.Cookie{Name: "access_token", MaxAge: -1})
 	c.Cookie(&fiber.Cookie{Name: "refresh_token", MaxAge: -1})
 	c.Cookie(&fiber.Cookie{Name: "csrf_token", MaxAge: -1})
@@ -254,7 +234,6 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Logged out successfully"})
 }
 
-// Me returns the current user info
 func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	userIDStr := middleware.GetUserIDFromContext(c)
 	userID, err := uuid.Parse(userIDStr)
@@ -286,12 +265,10 @@ func generateCSRFToken() string {
 	return hex.EncodeToString(b)
 }
 
-// --- Helper for parsing UUID from path ---
 func parseUUIDParam(c *fiber.Ctx, param string) (uuid.UUID, error) {
 	return uuid.Parse(c.Params(param))
 }
 
-// --- Helper for parsing pagination ---
 func parsePagination(c *fiber.Ctx) (int, int) {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "50"))

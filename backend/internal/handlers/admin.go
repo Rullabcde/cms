@@ -12,7 +12,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// CategoryHandler handles category endpoints
 type CategoryHandler struct {
 	service *services.CategoryService
 }
@@ -78,7 +77,6 @@ func (h *CategoryHandler) Delete(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Category deleted"})
 }
 
-// UserHandler handles user management endpoints (Admin only)
 type UserHandler struct {
 	service *services.UserService
 }
@@ -132,7 +130,6 @@ func (h *UserHandler) Deactivate(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "User deactivated"})
 }
 
-// WhitelistHandler handles whitelist endpoints (Admin only)
 type WhitelistHandler struct {
 	service *services.WhitelistService
 }
@@ -220,7 +217,6 @@ func (h *WhitelistHandler) BulkImport(c *fiber.Ctx) error {
 	})
 }
 
-// AuditLogHandler handles audit log endpoints (Admin only)
 type AuditLogHandler struct {
 	service *services.AuditService
 }
@@ -272,7 +268,6 @@ func (h *AuditLogHandler) Export(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch audit logs"})
 	}
 
-	// Build CSV
 	var csv strings.Builder
 	csv.WriteString("User,Action,Resource Type,Resource ID,Change Summary,Status,IP Address,Created At\n")
 	for _, log := range logs {

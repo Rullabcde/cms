@@ -1,6 +1,5 @@
 'use client'
-
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { authApi } from '@/lib/api'
 import type { User } from '@/types'
 
@@ -18,6 +17,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const hasInitialized = useRef(false)
 
   const refreshUser = useCallback(async () => {
     try {
@@ -31,7 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    refreshUser()
+    if (!hasInitialized.current) {
+      hasInitialized.current = true
+      refreshUser()
+    }
   }, [refreshUser])
 
   const login = () => {

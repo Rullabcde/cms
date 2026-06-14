@@ -1,8 +1,11 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -48,14 +51,27 @@ type Config struct {
 	AllowedOrigins []string
 }
 
-func Load() *Config {
-	// Load .env file if it exists (ignore error in production)
-	godotenv.Load()
+func Load() (*Config, error) {
+	_ = godotenv.Load()
 
 	accessTokenExpiry, _ := strconv.Atoi(getEnv("ACCESS_TOKEN_EXPIRY_MINUTES", "15"))
 	refreshTokenExpiry, _ := strconv.Atoi(getEnv("REFRESH_TOKEN_EXPIRY_DAYS", "7"))
 
-	return &Config{
+	originsRaw := getEnv("ALLOWED_ORIGINS", "")
+	var origins []string
+	if originsRaw != "" {
+		for _, o := range strings.Split(originsRaw, ",") {
+			o = strings.TrimSpace(o)
+			if o != "" {
+				origins = append(origins, o)
+			}
+		}
+	}
+	if len(origins) == 0 {
+		origins = []string{getEnv("FRONTEND_URL", "http://localhost:3000")}
+	}
+
+	cfg := &Config{
 		ServerPort: getEnv("SERVER_PORT", "8080"),
 		Env:        getEnv("APP_ENV", "development"),
 
@@ -70,7 +86,7 @@ func Load() *Config {
 		RedisPort:     getEnv("REDIS_PORT", "6379"),
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 
-		JWTSecret:          getEnv("JWT_SECRET", "change-me-in-production"),
+		JWTSecret:          getEnv("JWT_SECRET", ""),
 		AccessTokenExpiry:  accessTokenExpiry,
 		RefreshTokenExpiry: refreshTokenExpiry,
 
@@ -81,8 +97,54 @@ func Load() *Config {
 		MasterEncryptionKey: getEnv("MASTER_ENCRYPTION_KEY", ""),
 		FrontendURL:         getEnv("FRONTEND_URL", "http://localhost:3000"),
 		AdminEmail:          getEnv("ADMIN_EMAIL", ""),
-		AllowedOrigins:      []string{getEnv("FRONTEND_URL", "http://localhost:3000")},
+		AllowedOrigins:      origins,
 	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("config validation: %w", err)
+	}
+
+	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	var errs []string
+
+	if c.JWTSecret == "" {
+		errs = append(errs, "JWT_SECRET is required")
+	} else if c.JWTSecret == "change-me-in-production" || len(c.JWTSecret) < 32 {
+		if c.Env == "production" {
+			errs = append(errs, "JWT_SECRET must be at least 32 characters in production")
+		}
+	}
+
+	if c.MasterEncryptionKey == "" {
+		errs = append(errs, "MASTER_ENCRYPTION_KEY is required for credential encryption")
+	}
+
+	if c.GoogleClientID == "" || c.GoogleClientSecret == "" {
+		errs = append(errs, "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required")
+	}
+
+	if c.Env == "production" && c.DBPassword == "postgres" {
+		errs = append(errs, "DB_PASSWORD must not use default value in production")
+	}
+
+	if c.AccessTokenExpiry <= 0 || c.AccessTokenExpiry > 1440 {
+		errs = append(errs, "ACCESS_TOKEN_EXPIRY_MINUTES must be between 1 and 1440")
+	}
+	if c.RefreshTokenExpiry <= 0 || c.RefreshTokenExpiry > 365 {
+		errs = append(errs, "REFRESH_TOKEN_EXPIRY_DAYS must be between 1 and 365")
+	}
+
+	if len(errs) > 0 {
+		return errors.New(strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+func (c *Config) IsProduction() bool {
+	return c.Env == "production"
 }
 
 func getEnv(key, fallback string) string {

@@ -23,9 +23,10 @@ export interface Credential {
   category_id: string
   category?: Category
   name: string
+  database_name: string | null
   description: string | null
   tags: string[]
-  credential_fields?: Record<string, string>
+  credential_fields?: Record<string, Record<string, string>>
   is_deleted: boolean
   created_at: string
   created_by?: User
@@ -36,17 +37,19 @@ export interface Credential {
 export interface CredentialCreateRequest {
   category_id: string
   name: string
+  database_name?: string
   description?: string
   tags?: string[]
-  credential_fields: Record<string, string>
+  credential_fields: Record<string, Record<string, string>>
 }
 
 export interface CredentialUpdateRequest {
   category_id?: string
   name?: string
+  database_name?: string
   description?: string
   tags?: string[]
-  credential_fields?: Record<string, string>
+  credential_fields?: Record<string, Record<string, string>>
 }
 
 export interface AuditLog {

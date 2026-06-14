@@ -8,32 +8,27 @@ import (
 	"gorm.io/gorm"
 )
 
-// CategoryService handles category CRUD operations
 type CategoryService struct {
 	db    *gorm.DB
 	audit *AuditService
 }
 
-// NewCategoryService creates a new category service
 func NewCategoryService(db *gorm.DB, audit *AuditService) *CategoryService {
 	return &CategoryService{db: db, audit: audit}
 }
 
-// List returns all categories
 func (s *CategoryService) List() ([]models.Category, error) {
 	var categories []models.Category
 	err := s.db.Order("is_default DESC, name ASC").Find(&categories).Error
 	return categories, err
 }
 
-// GetByID returns a single category
 func (s *CategoryService) GetByID(id uuid.UUID) (*models.Category, error) {
 	var category models.Category
 	err := s.db.First(&category, "id = ?", id).Error
 	return &category, err
 }
 
-// CreateRequest defines the request for creating a category
 type CategoryCreateRequest struct {
 	Name        string  `json:"name" validate:"required,max=50"`
 	Description *string `json:"description" validate:"omitempty,max=200"`
@@ -41,7 +36,6 @@ type CategoryCreateRequest struct {
 	Icon        *string `json:"icon"`
 }
 
-// Create creates a new category
 func (s *CategoryService) Create(req CategoryCreateRequest, userID uuid.UUID, ipAddress, userAgent string) (*models.Category, error) {
 	category := models.Category{
 		Name:            req.Name,
@@ -69,7 +63,6 @@ func (s *CategoryService) Create(req CategoryCreateRequest, userID uuid.UUID, ip
 	return &category, nil
 }
 
-// Update updates a category
 func (s *CategoryService) Update(id uuid.UUID, req CategoryCreateRequest, userID uuid.UUID, ipAddress, userAgent string) (*models.Category, error) {
 	var category models.Category
 	if err := s.db.First(&category, "id = ?", id).Error; err != nil {
@@ -104,14 +97,12 @@ func (s *CategoryService) Update(id uuid.UUID, req CategoryCreateRequest, userID
 	return s.GetByID(id)
 }
 
-// Delete deletes a category (only if no credentials or moves them to default)
 func (s *CategoryService) Delete(id uuid.UUID, userID uuid.UUID, ipAddress, userAgent string) error {
 	var category models.Category
 	if err := s.db.First(&category, "id = ?", id).Error; err != nil {
 		return err
 	}
 
-	// Check if category has credentials
 	var count int64
 	s.db.Model(&models.Credential{}).Where("category_id = ? AND is_deleted = ?", id, false).Count(&count)
 	if count > 0 {
