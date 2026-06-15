@@ -6,7 +6,7 @@ WORKDIR /app
 # Install Dependencies
 FROM base AS deps
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci
 
 # Build Stage
 FROM base AS builder
