@@ -1,10 +1,13 @@
 'use client'
 
 import { useAuth } from '@/contexts/auth-context'
-import { useRouter, usePathname } from 'next/navigation'
-import { FileText, Users, Shield, LayoutDashboard, Star } from 'lucide-react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useQuery } from '@tanstack/react-query'
+import { categoriesApi } from '@/lib/api'
+import { FileText, Users, Shield, LayoutDashboard, Star, Database } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SidebarLink } from './sidebar-link'
+import type { Category } from '@/types'
 
 // ─── Shared favorites helper ──────────────────────────────────────────────────
 export function getFavoriteIds(): string[] {
@@ -26,9 +29,18 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const { user } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
 
   const isHomePage = pathname === '/'
   const favCount = getFavoriteIds().length
+
+  // Fetch categories for sidebar navigation
+  const { data: catData } = useQuery({
+    queryKey: ['categories'],
+    queryFn: () => categoriesApi.list().then((r) => r.data),
+  })
+  const categories: Category[] = catData?.data || []
+  const activeCategory = searchParams.get('category') || ''
 
   return (
     <>
@@ -62,6 +74,31 @@ export function Sidebar({ open, onClose }: SidebarProps) {
             }}
           />
         </nav>
+
+        {/* Categories */}
+        {categories.length > 0 && (
+          <div className="border-t border-border p-2 space-y-0.5">
+            <div className="px-2 pb-1.5 pt-1">
+              <span className="text-[10px] font-semibold text-text-secondary uppercase tracking-widest">
+                Categories
+              </span>
+            </div>
+            {categories.map((cat) => (
+              <SidebarLink
+                key={cat.id}
+                href={`/?category=${encodeURIComponent(cat.name)}`}
+                icon={<Database className="w-4 h-4" />}
+                label={cat.name}
+                active={activeCategory === cat.name}
+                preventDefault
+                onClick={() => {
+                  router.push(`/?category=${encodeURIComponent(cat.name)}`)
+                  onClose()
+                }}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Admin Links */}
         {user?.role === 'admin' && (

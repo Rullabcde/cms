@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { credentialsApi, categoriesApi } from '@/lib/api'
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Plus, Upload, Search, X, Loader2 } from 'lucide-react'
+import { Plus, Upload, Search, X, Loader2, Database } from 'lucide-react'
 import { getFavoriteIds } from '@/components/layout/sidebar'
 import { DatabaseGroup } from '@/components/credentials/database-group'
 import { EmptyState } from '@/components/credentials/empty-state'
@@ -33,6 +33,7 @@ function HomePageInner() {
 
   const searchQuery = searchParams.get('q') || ''
   const showFavorites = searchParams.get('favorites') === 'true'
+  const selectedCategory = searchParams.get('category') || ''
   const page = Number(searchParams.get('page') || '1')
 
   const [favorites, setFavorites] = useState<Set<string>>(() => new Set(getFavoriteIds()))
@@ -93,9 +94,13 @@ function HomePageInner() {
     return acc
   }, {})
 
-  // Apply local search + favorites filter
+  // Apply local search + favorites + category filter
   const filteredGrouped = Object.entries(grouped).reduce<Record<string, Credential[]>>((acc, [group, creds]) => {
     let filtered = creds
+    // Filter by selected category
+    if (selectedCategory) {
+      filtered = filtered.filter((c) => (c.category?.name || 'Uncategorized') === selectedCategory)
+    }
     if (showFavorites) filtered = filtered.filter((c) => favorites.has(c.id))
     if (localSearch) {
       filtered = filtered.filter(
@@ -117,9 +122,25 @@ function HomePageInner() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-lg font-semibold text-foreground tracking-tight">
-            {showFavorites ? 'Favorites' : 'Credentials'}
-          </h1>
+          <div className="flex items-center gap-2">
+            {selectedCategory && (
+              <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-accent/10">
+                <Database className="w-3.5 h-3.5 text-accent" />
+              </div>
+            )}
+            <h1 className="text-lg font-semibold text-foreground tracking-tight">
+              {showFavorites ? 'Favorites' : selectedCategory ? selectedCategory : 'Credentials'}
+            </h1>
+            {selectedCategory && (
+              <button
+                onClick={() => router.push('/')}
+                className="p-1 rounded-md hover:bg-secondary-bg text-text-secondary hover:text-foreground transition-colors"
+                title="Show all credentials"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <p className="text-xs text-text-secondary mt-0.5">
             {showFavorites
               ? `${filteredTotal} favorite${filteredTotal !== 1 ? 's' : ''}`
