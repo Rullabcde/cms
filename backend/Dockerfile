@@ -15,6 +15,6 @@ USER 65532:65532
 WORKDIR /app
 COPY --from=builder /server .
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD ["/server", "--health"] || exit 1
+# HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+#   CMD ["/server", "--health"] || exit 1
 ENTRYPOINT ["./server"]
