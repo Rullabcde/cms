@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { usersApi } from '@/lib/api'
-import DashboardLayout from '../../dashboard-layout'
 import { Users, Shield, UserCog, Search, AlertTriangle } from 'lucide-react'
 import type { User } from '@/types'
 import { Input } from '@/components/ui/input'
@@ -40,7 +39,7 @@ export default function UsersPage() {
   const users = search ? allUsers.filter((u) => u.email.toLowerCase().includes(search.toLowerCase())) : allUsers
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
@@ -106,7 +105,6 @@ export default function UsersPage() {
             ) : (
               users.map((user) => (
                 <tr key={user.id} className="hover:bg-secondary-bg/40 transition-colors">
-                  {/* User info */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div
@@ -121,15 +119,11 @@ export default function UsersPage() {
                       <span className="text-foreground font-medium truncate max-w-[220px]">{user.email}</span>
                     </div>
                   </td>
-
-                  {/* Role selector */}
                   <td className="px-4 py-3">
                     <Select
                       value={user.role}
                       onValueChange={(role) => {
-                        if (role) {
-                          updateRoleMutation.mutate({ id: user.id, role })
-                        }
+                        if (role) updateRoleMutation.mutate({ id: user.id, role })
                       }}
                     >
                       <SelectTrigger
@@ -159,8 +153,6 @@ export default function UsersPage() {
                       </SelectContent>
                     </Select>
                   </td>
-
-                  {/* Last login */}
                   <td className="px-4 py-3 text-sm text-text-secondary">
                     {user.last_login_at ? (
                       new Date(user.last_login_at).toLocaleString()
@@ -168,8 +160,6 @@ export default function UsersPage() {
                       <span className="italic text-text-secondary/60">Never</span>
                     )}
                   </td>
-
-                  {/* Status badge */}
                   <td className="px-4 py-3">
                     <span
                       className={cn(
@@ -182,17 +172,13 @@ export default function UsersPage() {
                       {user.is_active ? '● Active' : '● Inactive'}
                     </span>
                   </td>
-
-                  {/* Actions */}
                   <td className="px-4 py-3 text-right">
                     {user.is_active && (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          if (confirm(`Deactivate user ${user.email}?`)) {
-                            deactivateMutation.mutate(user.id)
-                          }
+                          if (confirm(`Deactivate user ${user.email}?`)) deactivateMutation.mutate(user.id)
                         }}
                         className="h-7 text-xs text-danger border-danger/20 hover:bg-danger/5 hover:text-danger gap-1"
                       >
@@ -207,6 +193,6 @@ export default function UsersPage() {
           </tbody>
         </table>
       </div>
-    </DashboardLayout>
+    </>
   )
 }

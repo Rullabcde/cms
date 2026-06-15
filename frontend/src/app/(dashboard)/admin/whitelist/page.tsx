@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { whitelistApi } from '@/lib/api'
-import DashboardLayout from '../../dashboard-layout'
 import { Shield, Plus, Trash2, Upload, X, Search, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import type { WhitelistEmail } from '@/types'
 import { Button } from '@/components/ui/button'
@@ -56,7 +55,7 @@ export default function WhitelistPage() {
     : allEntries
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -72,12 +71,10 @@ export default function WhitelistPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowImportModal(true)} className="gap-2">
-            <Upload className="w-3.5 h-3.5" />
-            Import CSV
+            <Upload className="w-3.5 h-3.5" /> Import CSV
           </Button>
           <Button size="sm" onClick={() => setShowAddModal(true)} className="gap-2">
-            <Plus className="w-3.5 h-3.5" />
-            Add Email
+            <Plus className="w-3.5 h-3.5" /> Add Email
           </Button>
         </div>
       </div>
@@ -93,7 +90,7 @@ export default function WhitelistPage() {
         />
       </div>
 
-      {/* Whitelist Table */}
+      {/* Table */}
       <div className="border border-border rounded-xl overflow-hidden bg-surface">
         <table className="w-full text-sm">
           <thead>
@@ -168,9 +165,7 @@ export default function WhitelistPage() {
                     {entry.is_active && (
                       <button
                         onClick={() => {
-                          if (confirm(`Remove ${entry.email} from whitelist?`)) {
-                            removeMutation.mutate(entry.id)
-                          }
+                          if (confirm(`Remove ${entry.email} from whitelist?`)) removeMutation.mutate(entry.id)
                         }}
                         className="p-1.5 rounded-lg hover:bg-danger/10 text-text-secondary hover:text-danger transition-colors"
                         title="Remove from whitelist"
@@ -186,7 +181,7 @@ export default function WhitelistPage() {
         </table>
       </div>
 
-      {/* ── Add Email Modal ─────────────────────────────────────────── */}
+      {/* Add Email Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl animate-fade-in">
@@ -234,8 +229,7 @@ export default function WhitelistPage() {
                     disabled={!newEmail || addMutation.isPending}
                     className="gap-2"
                   >
-                    {addMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Add Email
+                    {addMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}Add Email
                   </Button>
                 </div>
               </div>
@@ -244,7 +238,7 @@ export default function WhitelistPage() {
         </div>
       )}
 
-      {/* ── Import CSV Modal ────────────────────────────────────────── */}
+      {/* Import CSV Modal */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl animate-fade-in">
@@ -261,7 +255,6 @@ export default function WhitelistPage() {
                   <X className="w-4 h-4" />
                 </button>
               </div>
-
               <div
                 onClick={() => document.getElementById('whitelist-file-input')?.click()}
                 className="border-2 border-dashed border-border hover:border-accent/50 rounded-xl p-8 text-center cursor-pointer transition-colors hover:bg-secondary-bg/30 mb-4"
@@ -280,7 +273,6 @@ export default function WhitelistPage() {
                   }}
                 />
               </div>
-
               {importMutation.isPending && (
                 <div className="flex items-center gap-2 p-3 bg-accent/5 border border-accent/20 rounded-lg text-accent text-sm">
                   <Loader2 className="w-4 h-4 animate-spin shrink-0" />
@@ -303,6 +295,6 @@ export default function WhitelistPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   )
 }

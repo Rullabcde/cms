@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { auditLogsApi } from '@/lib/api'
-import DashboardLayout from '../../dashboard-layout'
-import { FileText, Filter, ChevronLeft, ChevronRight, CheckCircle, XCircle, Search } from 'lucide-react'
+import { FileText, Filter, CheckCircle, XCircle, Search } from 'lucide-react'
 import type { AuditLog } from '@/types'
 import { Input } from '@/components/ui/input'
+import { Pagination } from '@/components/shared/pagination'
 
 const ACTION_COLORS: Record<string, string> = {
   CREATE: 'bg-success/10 text-success border-success/20',
@@ -21,17 +21,10 @@ const ACTION_COLORS: Record<string, string> = {
 
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1)
-  const [filters, setFilters] = useState({
-    action: '',
-    status: '',
-    resource_type: '',
-  })
+  const [filters, setFilters] = useState({ action: '', status: '', resource_type: '' })
   const [search, setSearch] = useState('')
 
-  const params: Record<string, string> = {
-    page: String(page),
-    limit: '50',
-  }
+  const params: Record<string, string> = { page: String(page), limit: '50' }
   if (filters.action) params.action = filters.action
   if (filters.status) params.status = filters.status
   if (filters.resource_type) params.resource_type = filters.resource_type
@@ -45,7 +38,6 @@ export default function AuditLogsPage() {
   const total: number = data?.total || 0
   const totalPages = Math.ceil(total / 50)
 
-  // Client-side search filter
   const logs = search
     ? allLogs.filter(
         (l) =>
@@ -57,7 +49,7 @@ export default function AuditLogsPage() {
     : allLogs
 
   return (
-    <DashboardLayout>
+    <>
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">
@@ -71,7 +63,6 @@ export default function AuditLogsPage() {
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        {/* Search */}
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-secondary" />
           <Input
@@ -81,14 +72,10 @@ export default function AuditLogsPage() {
             className="pl-9 h-9 bg-secondary-bg text-sm"
           />
         </div>
-
-        {/* Filter icon */}
         <div className="flex items-center gap-1 text-text-secondary">
           <Filter className="w-3.5 h-3.5" />
           <span className="text-xs font-medium">Filter:</span>
         </div>
-
-        {/* Action filter */}
         <select
           value={filters.action}
           onChange={(e) => setFilters({ ...filters, action: e.target.value })}
@@ -103,8 +90,6 @@ export default function AuditLogsPage() {
           <option value="LOGOUT">LOGOUT</option>
           <option value="IMPORT">IMPORT</option>
         </select>
-
-        {/* Status filter */}
         <select
           value={filters.status}
           onChange={(e) => setFilters({ ...filters, status: e.target.value })}
@@ -114,8 +99,6 @@ export default function AuditLogsPage() {
           <option value="SUCCESS">SUCCESS</option>
           <option value="FAILURE">FAILURE</option>
         </select>
-
-        {/* Resource filter */}
         <select
           value={filters.resource_type}
           onChange={(e) => setFilters({ ...filters, resource_type: e.target.value })}
@@ -187,9 +170,7 @@ export default function AuditLogsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                          ACTION_COLORS[log.action] || 'bg-secondary-bg text-text-secondary border-border'
-                        }`}
+                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${ACTION_COLORS[log.action] || 'bg-secondary-bg text-text-secondary border-border'}`}
                       >
                         {log.action}
                       </span>
@@ -225,28 +206,7 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="p-2 rounded-lg hover:bg-secondary-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <span className="text-sm text-text-secondary px-2">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="p-2 rounded-lg hover:bg-secondary-bg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-    </DashboardLayout>
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+    </>
   )
 }
